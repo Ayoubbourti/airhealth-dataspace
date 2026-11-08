@@ -233,3 +233,81 @@ def lire_budget(consumer_id: str, x_api_key: str | None = Header(default=None)):
         ).fetchone()
     utilise = row[0] if row else 0.0
     return {"total": BUDGET_EPSILON, "utilise": utilise, "restant": round(BUDGET_EPSILON - utilise, 2)}
+
+class Feature(BaseModel):
+    date: str
+    tranche: int
+
+
+class RequeteTrain(BaseModel):
+    contract_id: str
+    consumer_id: str
+    features: list[Feature]
+    signature: str
+
+
+NB_TRANCHES = 4
+TAUX_MIN = 0.1  # plancher avant log
+
+
+def signature_features_attendue(req):
+    message = json.dumps(
+        {"type": "features", "contract_id": req.contract_id,
+         "consumer_id": req.consumer_id,
+         "features": [f.model_dump() for f in req.features]},
+        sort_keys=True, separators=(",", ":"), ensure_ascii=False,
+    ).encode("utf-8")
+    return hmac.new(SECRET_FEDERATION, message, hashlib.sha256).hexdigest()
+
+
+def traiter_train(req, x_api_key):
+    verifier_cle(x_api_key)
+    if not hmac.compare_digest(req.signature, signature_features_attendue(req)):
+        raise HTTPException(status_code=403, detail="Signature invalide : features non émises par le nœud A")
+    if not req.features:
+        raise HTTPException(status_code=400, detail="Liste vide")
+    dates = [f.date for f in req.features]
+    if len(dates) != len(set(dates)):
+        raise HTTPException(status_code=400, detail="Date dupliquée")
+    if any(not 0 <= f.tranche < NB_TRANCHES for f in req.features):
+        raise HTTPException(status_code=400, detail="Tranche invalide")
+
+    with closing(sqlite3.connect(DB_HOPITAL)) as conn:
+        admissions = dict(conn.execute("SELECT date, nombre FROM admissions").fetchall())
+    if any(d not in admissions for d in dates):
+        raise HTTPException(status_code=400, detail="Dates absentes de la base hospitalière")
+
+    ok, utilise = consommer_budget(req.consumer_id, EPSILON_PAR_REQUETE)
+    if not ok:
+        raise HTTPException(status_code=429, detail="Budget de confidentialité épuisé")
+
+    groupes = {k: [] for k in range(NB_TRANCHES)}
+    for f in req.features:
+        groupes[f.tranche].append(admissions[f.date])
+
+    tranches = []
+    for k in range(NB_TRANCHES):
+        valeurs = groupes[k]
+        n = len(valeurs)
+        if n < SEUIL_MIN_JOURS:
+            tranches.append({"tranche": k, "n": n, "taux": None, "statut": "SUPPRIME_GROUPE_TROP_PETIT"})
+            continue
+        taux = sum(valeurs) / n + bruit_laplace((BORNE_MAX / n) / EPSILON_PAR_REQUETE)
+        taux = min(max(taux, TAUX_MIN), BORNE_MAX)
+        tranches.append({"tranche": k, "n": n, "taux": round(taux, 3), "statut": "OK"})
+    return {
+        "tranches": tranches,
+        "epsilon": EPSILON_PAR_REQUETE,
+        "epsilon_restant": round(BUDGET_EPSILON - utilise, 2),
+    }
+
+
+@app.post("/train")
+def entrainer(req: RequeteTrain, x_api_key: str | None = Header(default=None)):
+    try:
+        res = traiter_train(req, x_api_key)
+    except HTTPException as e:
+        journaliser(req.consumer_id, req.contract_id, f"TRAIN REFUSE: {e.detail}", e.status_code)
+        raise
+    journaliser(req.consumer_id, req.contract_id, "TRAIN_OK", 200, EPSILON_PAR_REQUETE)
+    return res

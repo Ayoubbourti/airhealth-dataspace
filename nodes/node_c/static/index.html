@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="data:,">
 <title>AirHealth Data Space</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
@@ -22,6 +23,7 @@ h1{font-size:22px;font-weight:700;letter-spacing:-.3px}h1 span{color:var(--a)}
 .c4{grid-column:span 4}.c5{grid-column:span 5}.c7{grid-column:span 7}.c8{grid-column:span 8}.c12{grid-column:span 12}
 @media(max-width:900px){.c4,.c5,.c7,.c8{grid-column:span 12}}
 h2{font-size:13px;text-transform:uppercase;letter-spacing:.9px;color:var(--mut);font-weight:600;margin-bottom:14px}
+h2 .nocap{text-transform:none}
 .steps{display:flex;gap:10px;flex-wrap:wrap}
 button{font:inherit;font-weight:600;font-size:13.5px;border:0;border-radius:10px;padding:11px 18px;cursor:pointer;color:#06210f;background:var(--a);transition:.15s}
 button:hover{filter:brightness(1.1);transform:translateY(-1px)}button:disabled{opacity:.4;cursor:not-allowed;transform:none}
@@ -45,9 +47,12 @@ td{padding:8px 6px;border-bottom:1px solid #1a2342}
 </head>
 <body>
 <div class="wrap">
+
 <header>
-  <div><h1>AirHealth <span>Data Space</span></h1>
-  <div class="sub">Analyse fédérée santé et qualité de l'air · Laboratoire IASD · Tanger</div></div>
+  <div>
+    <h1>AirHealth <span>Data Space</span></h1>
+    <div class="sub">Analyse fédérée santé et qualité de l'air · Laboratoire IASD · Tanger</div>
+  </div>
   <div class="pills">
     <div class="pill"><span class="dot" id="dA"></span>Nœud A · Environnement</div>
     <div class="pill"><span class="dot" id="dB"></span>Nœud B · Hôpital</div>
@@ -55,6 +60,7 @@ td{padding:8px 6px;border-bottom:1px solid #1a2342}
 </header>
 
 <div class="grid">
+
   <div class="card c12">
     <h2>Parcours fédéré</h2>
     <div class="steps">
@@ -81,9 +87,12 @@ td{padding:8px 6px;border-bottom:1px solid #1a2342}
   <div class="card c4"><h2>Différence estimée</h2>
     <div class="kpi" id="kD">–<small>adm./jour</small></div><div class="lbl" id="kT">Vérité terrain (démo) : –</div></div>
 
-  <div class="card c8"><h2>Résultat bruité vs vérité terrain</h2><canvas id="chart" height="110"></canvas></div>
+  <div class="card c8">
+    <h2>Résultat bruité vs vérité terrain</h2>
+    <canvas id="chart" height="110"></canvas>
+  </div>
   <div class="card c4">
-    <h2>Budget de confidentialité ε</h2>
+    <h2>Budget de confidentialité <span class="nocap">ε</span></h2>
     <div class="kpi" id="eps">–<small>restant</small></div>
     <div class="bar"><i id="epsBar" style="width:0"></i></div>
     <div class="lbl" id="epsTxt">Budget par (consommateur, jeu de données)</div>
@@ -91,7 +100,12 @@ td{padding:8px 6px;border-bottom:1px solid #1a2342}
 
   <div class="card c7">
     <h2>Journal d'audit <span id="chain" class="tag wn" style="margin-left:8px">–</span></h2>
-    <div class="scroll"><table><thead><tr><th>#</th><th>Heure</th><th>Événement</th><th>Code</th></tr></thead><tbody id="aud"></tbody></table></div>
+    <div class="scroll">
+      <table>
+        <thead><tr><th>#</th><th>Heure</th><th>Événement</th><th>Code</th></tr></thead>
+        <tbody id="aud"></tbody>
+      </table>
+    </div>
   </div>
   <div class="card c5">
     <h2>Simulation d'attaques</h2>
@@ -101,6 +115,26 @@ td{padding:8px 6px;border-bottom:1px solid #1a2342}
     </div>
     <div id="atk" style="margin-top:12px"></div>
   </div>
+
+  <div class="card c12">
+    <h2>ML fédéré : régression sur la pollution de la veille</h2>
+    <div class="steps">
+      <button id="bMl">Entraîner le modèle (coûte ε = 1)</button>
+      <button class="alt" id="bCurve">Courbe précision vs ε</button>
+    </div>
+    <div class="msg" id="mlMsg">Le modèle apprend chez l'hôpital : seuls des taux bruités par tranche de PM2.5 sont publiés.</div>
+    <div class="grid" style="margin-top:14px">
+      <div class="c4">
+        <div class="kpi" id="mlB">–</div>
+        <div class="lbl">β1 (log-admissions par tranche de PM2.5)</div>
+        <div class="kpi" id="mlE" style="margin-top:14px">–<small>par tranche</small></div>
+        <div class="lbl" id="mlV">Vérité terrain (démo) : –</div>
+      </div>
+      <div class="c8"><canvas id="chMl" height="120"></canvas></div>
+      <div class="c12"><canvas id="chCurve" height="70"></canvas></div>
+    </div>
+  </div>
+
 </div>
 </div>
 
@@ -108,41 +142,56 @@ td{padding:8px 6px;border-bottom:1px solid #1a2342}
 const $=id=>document.getElementById(id);
 const api=async(u,m='GET')=>{const r=await fetch(u,{method:m});let j={};try{j=await r.json()}catch(e){}return{s:r.status,j}};
 const say=t=>$('msg').textContent=t;
-let chart,truth=null;
+const axes={
+  x:{ticks:{color:'#8b96b8'},grid:{display:false}},
+  y:{ticks:{color:'#8b96b8'},grid:{color:'#1d2748'},beginAtZero:true}
+};
+let chart,chMl,chCv,truth=null;
 
 async function refresh(){
   const st=(await api('/api/status')).j;
-  $('dA').className='dot'+(st.A?' on':'');$('dB').className='dot'+(st.B?' on':'');
+  $('dA').className='dot'+(st.A?' on':'');
+  $('dB').className='dot'+(st.B?' on':'');
   const b=await api('/api/budget');
   if(b.s===200){
     $('eps').innerHTML=b.j.restant+'<small>sur '+b.j.total+'</small>';
     $('epsBar').style.width=(100*b.j.restant/b.j.total)+'%';
-    $('epsTxt').textContent=b.j.restant<=0?'Budget épuisé : toute nouvelle requête est refusée (429).':b.j.utilise+' consommé · bruit imposé par l\'hôpital';
+    $('epsTxt').textContent=b.j.restant<=0
+      ?'Budget épuisé : toute nouvelle requête est refusée (429).'
+      :b.j.utilise+' consommé · bruit imposé par l\'hôpital';
   }
   const a=await api('/api/audit');
   if(a.s===200){
-    const c=$('chain');c.textContent=a.j.chaine_valide?'chaîne intègre':'chaîne altérée';c.className='tag '+(a.j.chaine_valide?'ok':'ko');
+    const c=$('chain');
+    c.textContent=a.j.chaine_valide?'chaîne intègre':'chaîne altérée';
+    c.className='tag '+(a.j.chaine_valide?'ok':'ko');
     $('aud').innerHTML=a.j.dernieres_entrees.map(e=>`<tr><td>${e[0]}</td><td>${e[1].slice(11,19)}</td><td>${e[4]}</td>
       <td><span class="tag ${e[5]===200?'ok':'ko'}">${e[5]}</span></td></tr>`).join('');
   }
 }
 
 $('bCat').onclick=async()=>{
-  const r=await api('/api/catalog');if(r.s!==200)return say('Nœud A injoignable.');
+  const r=await api('/api/catalog');
+  if(r.s!==200)return say('Nœud A injoignable.');
   const d=r.j[0];
-  $('cat').innerHTML=[['Titre',d.title],['Éditeur',d.publisher],['Couverture',d.temporal_coverage],['Unité',d.unit],
-    ['Finalité autorisée',d.allowed_purpose]].map(x=>`<div class="row"><span style="color:var(--mut)">${x[0]}</span><span>${x[1]}</span></div>`).join('');
+  $('cat').innerHTML=[['Titre',d.title],['Éditeur',d.publisher],['Couverture',d.temporal_coverage],
+    ['Unité',d.unit],['Finalité autorisée',d.allowed_purpose]]
+    .map(x=>`<div class="row"><span style="color:var(--mut)">${x[0]}</span><span>${x[1]}</span></div>`).join('');
   say('Catalogue découvert sans ouvrir aucune base de données.');
 };
 
 $('bCon').onclick=async()=>{
-  const r=await api('/api/contract','POST');if(r.s!==200)return say('Contrat refusé : '+(r.j.detail||r.s));
-  $('con').innerHTML=`<div class="row"><span style="color:var(--mut)">Identifiant</span><span class="mono">${r.j.contract_id}</span></div>
+  const r=await api('/api/contract','POST');
+  if(r.s!==200)return say('Contrat refusé : '+(r.j.detail||r.s));
+  $('con').innerHTML=`
+   <div class="row"><span style="color:var(--mut)">Identifiant</span><span class="mono">${r.j.contract_id}</span></div>
    <div class="row"><span style="color:var(--mut)">Consommateur</span><span>laboratoire-iasd</span></div>
    <div class="row"><span style="color:var(--mut)">Finalité</span><span class="tag ok">research</span></div>
    <div class="row"><span style="color:var(--mut)">Jours classifiés</span><span>${r.j.jours}</span></div>
    <div class="row"><span style="color:var(--mut)">Signature (A)</span><span class="mono">${r.j.signature}</span></div>`;
-  $('bCal').disabled=false;say('Contrat signé par le nœud A. Le calcul peut être demandé à l\'hôpital.');refresh();
+  $('bCal').disabled=false;
+  say('Contrat signé par le nœud A. Le calcul peut être demandé à l\'hôpital.');
+  refresh();
 };
 
 $('bCal').onclick=async()=>{
@@ -154,7 +203,9 @@ $('bCal').onclick=async()=>{
   $('kD').innerHTML=(h.moyenne-l.moyenne).toFixed(2)+'<small>adm./jour</small>';
   if(!truth)truth=(await api('/api/truth')).j;
   $('kT').textContent='Vérité terrain (démo) : '+(truth.haute-truth.basse).toFixed(2);
-  draw(h.moyenne,l.moyenne);say('Résultat obtenu : agrégats bruités uniquement, aucune donnée brute reçue.');refresh();
+  draw(h.moyenne,l.moyenne);
+  say('Résultat obtenu : agrégats bruités uniquement, aucune donnée brute reçue.');
+  refresh();
 };
 
 function draw(h,l){
@@ -162,19 +213,47 @@ function draw(h,l){
   chart=new Chart($('chart'),{type:'bar',data:{labels:['Pollution élevée','Pollution normale'],datasets:[
     {label:'Retourné par l\'hôpital (bruité)',data:[h,l],backgroundColor:'#818cf8',borderRadius:8},
     {label:'Vérité terrain (démo)',data:[truth.haute,truth.basse],backgroundColor:'#6ee7b7',borderRadius:8}]},
-    options:{plugins:{legend:{labels:{color:'#8b96b8'}}},scales:{x:{ticks:{color:'#8b96b8'},grid:{display:false}},
-    y:{ticks:{color:'#8b96b8'},grid:{color:'#1d2748'},beginAtZero:true}}}});
+    options:{plugins:{legend:{labels:{color:'#8b96b8'}}},scales:axes}});
 }
 
 async function attaque(burn){
   $('atk').innerHTML='<div class="lbl">Attaques en cours…</div>';
   const r=await api('/api/attack?epuiser='+burn,'POST');
+  if(!Array.isArray(r.j)){$('atk').innerHTML='<div class="lbl">Erreur '+r.s+' : '+(r.j.detail||'')+'</div>';return;}
   $('atk').innerHTML=r.j.map(t=>`<div class="row"><span>${t.test}</span>
     <span class="tag ${t.bloque?'ok':'ko'}">${t.bloque?'bloquée':'PASSÉE'} · ${t.recu}</span></div>`).join('');
   refresh();
 }
 $('bAtk').onclick=()=>attaque(false);
 $('bBurn').onclick=()=>{if(confirm('Cela consomme tout le budget ε. Continuer ?'))attaque(true)};
+
+$('bMl').onclick=async()=>{
+  $('mlMsg').textContent='Entraînement chez l\'hôpital…';
+  const r=await api('/api/ml/train','POST');
+  if(r.s!==200){$('mlMsg').textContent='Refusé ('+r.s+') : '+(r.j.detail||'');return refresh();}
+  const j=r.j;
+  $('mlB').textContent=j.beta1;
+  $('mlE').innerHTML='+'+j.effet_pct+' %<small>par tranche</small>';
+  $('mlV').textContent='Vérité terrain (démo) : β1 = '+j.vrai_beta1;
+  if(chMl)chMl.destroy();
+  chMl=new Chart($('chMl'),{type:'bar',data:{labels:j.labels.map(l=>'PM2.5 veille '+l),datasets:[
+    {label:'Taux publié par l\'hôpital (bruité)',data:j.tranches.map(t=>t.taux),backgroundColor:'#818cf8',borderRadius:8},
+    {label:'Vérité terrain (démo)',data:j.vrais_taux,backgroundColor:'#6ee7b7',borderRadius:8}]},
+    options:{plugins:{legend:{labels:{color:'#8b96b8'}}},scales:axes}});
+  $('mlMsg').textContent='Modèle ajusté. Budget restant : '+j.epsilon_restant+' sur 3.';
+  refresh();
+};
+
+$('bCurve').onclick=async()=>{
+  const r=await api('/api/ml/curve');
+  if(r.s!==200){$('mlMsg').textContent='Erreur '+r.s;return;}
+  if(chCv)chCv.destroy();
+  chCv=new Chart($('chCurve'),{type:'line',data:{labels:r.j.points.map(p=>'ε = '+p.epsilon),datasets:[
+    {label:'Erreur médiane sur β1 (300 simulations)',data:r.j.points.map(p=>p.erreur_mediane),
+     borderColor:'#fbbf24',backgroundColor:'#fbbf24',tension:.3}]},
+    options:{plugins:{legend:{labels:{color:'#8b96b8'}}},scales:axes}});
+  $('mlMsg').textContent='Plus ε est grand, plus le modèle est précis et moins il protège. Simulation : aucun budget consommé.';
+};
 
 refresh();setInterval(refresh,8000);
 </script>

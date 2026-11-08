@@ -133,3 +133,51 @@ def lire_classifications(
         "classifications": classifications,
         "signature": signer(contract_id, consumer_id, classifications),
     }
+
+BORNES_TRANCHES = (15.0, 25.0, 35.0)  # tranches 0 : <15, 1 : 15-25, 2 : 25-35, 3 : >=35
+
+
+def tranche(pm25):
+    return sum(1 for b in BORNES_TRANCHES if pm25 >= b)
+
+
+def signer_features(contract_id, consumer_id, features):
+    message = json.dumps(
+        {"type": "features", "contract_id": contract_id,
+         "consumer_id": consumer_id, "features": features},
+        sort_keys=True, separators=(",", ":"), ensure_ascii=False,
+    ).encode("utf-8")
+    return hmac.new(SECRET_FEDERATION, message, hashlib.sha256).hexdigest()
+
+
+@app.get("/features")
+def lire_features(
+    contract_id: str,
+    consumer_id: str,
+    x_api_key: str | None = Header(default=None),
+):
+    verifier_cle(x_api_key)
+    contrat = contrats.get(contract_id)
+    if contrat is None:
+        raise HTTPException(status_code=403, detail="Contrat inconnu")
+    if (contrat["status"] != "AGREED" or contrat["dataset_id"] != DATASET_ID
+            or contrat["purpose"] != FINALITE_AUTORISEE
+            or contrat["consumer_id"] != consumer_id):
+        raise HTTPException(status_code=403, detail="Contrat non applicable")
+
+    with closing(sqlite3.connect(DB_AIR)) as conn:
+        lignes = conn.execute(
+            "SELECT date, pm25 FROM qualite_air ORDER BY date"
+        ).fetchall()
+
+    # PM2.5 de la veille, en tranches : l'effet est retardé d'un jour.
+    features = [
+        {"date": lignes[i][0], "tranche": tranche(lignes[i - 1][1])}
+        for i in range(1, len(lignes))
+    ]
+    return {
+        "contract_id": contract_id,
+        "consumer_id": consumer_id,
+        "features": features,
+        "signature": signer_features(contract_id, consumer_id, features),
+    }
