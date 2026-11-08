@@ -222,3 +222,14 @@ def lire_audit(x_api_key: str | None = Header(default=None)):
             "FROM audit ORDER BY id DESC LIMIT 20"
         ).fetchall()
     return {"chaine_valide": valide, "premiere_ligne_alteree": id_faux, "dernieres_entrees": lignes}
+
+@app.get("/budget")
+def lire_budget(consumer_id: str, x_api_key: str | None = Header(default=None)):
+    verifier_cle(x_api_key)
+    with closing(ouvrir()) as conn:
+        row = conn.execute(
+            "SELECT epsilon_utilise FROM budget WHERE consumer_id = ? AND dataset_id = ?",
+            (consumer_id, DATASET_ID),
+        ).fetchone()
+    utilise = row[0] if row else 0.0
+    return {"total": BUDGET_EPSILON, "utilise": utilise, "restant": round(BUDGET_EPSILON - utilise, 2)}
