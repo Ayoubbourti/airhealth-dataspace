@@ -92,6 +92,24 @@ python -m uvicorn app:app --port 8000
 
 Ouvrez **http://127.0.0.1:8000**. N'utilisez pas `--reload` : il efface la mémoire des contrats à chaque modification.
 
+## Interopérabilité sémantique
+
+| Élément | Où | Rôle |
+|---|---|---|
+| Catalogues DCAT (JSON-LD) | `semantic/catalog_air.jsonld`, `semantic/catalog_hopital.jsonld`, `GET /catalog.jsonld` | Découverte standard W3C |
+| Politique ODRL | `semantic/policy_air.jsonld`, `GET /policy` | Le nœud A **décide des contrats à partir de ce document** (permission : usage `research` par `laboratoire-iasd` ; interdiction : usage `commercial`) |
+| Unité UCUM / QUDT | catalogue A | `ug/m3` |
+| CIM-10 J00-J99 | catalogue B | Affections respiratoires |
+| SPARQL | `GET /sparql?query=...` (nœud A) | Requêtes SELECT/ASK ; `SERVICE` et modifications refusés |
+
+Exemple :
+
+```sparql
+PREFIX dcat: <http://www.w3.org/ns/dcat#>
+PREFIX dct: <http://purl.org/dc/terms/>
+SELECT ?titre WHERE { ?d a dcat:Dataset ; dct:title ?titre }
+```
+
 ## Tests
 
 ```bat
@@ -133,16 +151,16 @@ Rejeu de l'attaque contre la version corrigée : `tp/TP4_attaques/attaque_budget
 - Budget total non renouvelable ; le journal détecte la modification d'une ligne mais pas l'effacement complet de la base.
 - Clés API codées en dur, HTTP sans chiffrement, pas d'identité organisationnelle.
 - `/api/truth`, `/api/ml/curve` et la « vérité terrain » du dashboard lisent directement les bases : **réservés à la démonstration**.
-- Le catalogue est inspiré de DCAT et la règle de finalité d'ODRL, sans conformité aux standards.
+- Le JSON-LD DCAT/ODRL utilise un contexte inline (pas de validation SHACL ni de profil DCAT-AP) ; l'ancien `/catalog` JSON simple est conservé. La politique ODRL n'est appliquée que par le nœud A (celle du nœud B est déclarée, pas évaluée).
 
 ## Roadmap
 
 - [x] TP1 à TP4 et réponses aux questions
 - [x] Attaque sur le budget ε et correction (nœud B v2)
 - [x] Données synthétiques, dashboard, ML fédéré
-- [x] Tests automatiques `pytest` (28 tests, une preuve par correction)
+- [x] Tests automatiques `pytest` (48 tests, une preuve par correction)
 - [ ] Signatures Ed25519, contrats avec expiration, révocation et nonce
-- [ ] Catalogue DCAT en JSON-LD, politique ODRL, ontologie (UCUM, CIM-10)
+- [x] Catalogue DCAT en JSON-LD, politique ODRL appliquée, SPARQL en lecture seule, UCUM et CIM-10 (`semantic/`)
 - [x] CI GitHub Actions (`.github/workflows/tests.yml`)
 - [ ] Docker Compose
 - [ ] Comparaison avec IDSA, Eclipse EDC, Gaia-X, Catena-X

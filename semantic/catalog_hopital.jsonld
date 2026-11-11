@@ -1,0 +1,70 @@
+{
+  "@context": {
+    "dcat": "http://www.w3.org/ns/dcat#",
+    "dct": "http://purl.org/dc/terms/",
+    "foaf": "http://xmlns.com/foaf/0.1/",
+    "odrl": "http://www.w3.org/ns/odrl/2/",
+    "skos": "http://www.w3.org/2004/02/skos/core#",
+    "qudt": "http://qudt.org/schema/qudt/",
+    "xsd": "http://www.w3.org/2001/XMLSchema#",
+    "ah": "https://airhealth.example.org/ns#"
+  },
+  "@id": "https://airhealth.example.org/catalog/hopital",
+  "@type": "dcat:Catalog",
+  "dct:title": "Catalogue de l'hôpital régional",
+  "dct:publisher": {
+    "@id": "https://airhealth.example.org/org/hopital",
+    "@type": "foaf:Organization",
+    "foaf:name": "Hôpital régional"
+  },
+  "dcat:dataset": {
+    "@id": "https://airhealth.example.org/dataset/admissions-tanger",
+    "@type": "dcat:Dataset",
+    "dct:identifier": "dataset-admissions-tanger",
+    "dct:title": "Admissions hospitalières respiratoires à Tanger",
+    "dct:description": "Nombre quotidien d'admissions pour affections respiratoires (données fictives). Les données brutes ne sont jamais publiées : seuls des agrégats bruités sont calculés localement.",
+    "dct:publisher": { "@id": "https://airhealth.example.org/org/hopital" },
+    "dct:spatial": { "@type": "dct:Location", "skos:prefLabel": "Tanger" },
+    "dct:temporal": {
+      "@type": "dct:PeriodOfTime",
+      "dcat:startDate": { "@value": "2026-01-01", "@type": "xsd:date" },
+      "dcat:endDate": { "@value": "2026-12-31", "@type": "xsd:date" }
+    },
+    "dcat:keyword": ["admissions", "affections respiratoires", "CIM-10 J00-J99"],
+    "dct:subject": {
+      "@id": "https://icd.who.int/browse10/2019/en#/J00-J99",
+      "@type": "skos:Concept",
+      "skos:notation": "J00-J99",
+      "skos:prefLabel": "Maladies de l'appareil respiratoire (CIM-10, chapitre X)",
+      "skos:inScheme": { "@id": "http://hl7.org/fhir/sid/icd-10" }
+    },
+    "ah:measurementUnit": {
+      "@type": "qudt:Unit",
+      "qudt:ucumCode": "{admission}/d",
+      "skos:prefLabel": "admissions par jour"
+    },
+    "dcat:distribution": {
+      "@type": "dcat:Distribution",
+      "dct:title": "Calcul local (agrégats bruités uniquement)",
+      "dcat:accessURL": { "@id": "http://127.0.0.1:8002/compute" },
+      "dct:format": "application/json"
+    },
+    "odrl:hasPolicy": {
+      "@id": "https://airhealth.example.org/policy/hopital-agregats",
+      "@type": "odrl:Offer",
+      "odrl:permission": {
+        "@type": "odrl:Permission",
+        "odrl:action": { "@id": "odrl:aggregate" },
+        "odrl:constraint": {
+          "odrl:leftOperand": { "@id": "odrl:purpose" },
+          "odrl:operator": { "@id": "odrl:eq" },
+          "odrl:rightOperand": "research"
+        }
+      },
+      "odrl:prohibition": {
+        "@type": "odrl:Prohibition",
+        "odrl:action": { "@id": "odrl:distribute" }
+      }
+    }
+  }
+}

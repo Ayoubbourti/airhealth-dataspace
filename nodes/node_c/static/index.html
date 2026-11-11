@@ -135,6 +135,24 @@ td{padding:8px 6px;border-bottom:1px solid #1a2342}
     </div>
   </div>
 
+  <div class="card c12">
+    <h2>Interopérabilité sémantique : DCAT, ODRL, SPARQL</h2>
+    <div class="steps">
+      <button class="alt" id="bLd">Voir les catalogues DCAT (JSON-LD)</button>
+      <button class="alt" id="bPol">Voir la politique ODRL</button>
+      <button id="bSq">Exécuter la requête SPARQL</button>
+    </div>
+    <textarea id="sq" spellcheck="false" style="width:100%;margin-top:14px;height:130px;background:#0d1530;color:var(--tx);border:1px solid var(--line);border-radius:10px;padding:12px;font-family:ui-monospace,Consolas,monospace;font-size:12.5px">PREFIX dcat: &lt;http://www.w3.org/ns/dcat#&gt;
+PREFIX dct: &lt;http://purl.org/dc/terms/&gt;
+PREFIX qudt: &lt;http://qudt.org/schema/qudt/&gt;
+SELECT ?titre ?unite WHERE {
+  ?d a dcat:Dataset ; dct:title ?titre ; dct:subject ?s .
+  ?s qudt:ucumCode ?unite .
+}</textarea>
+    <div class="msg" id="sqMsg">Le catalogue est du RDF standard : le laboratoire découvre les données par requête, sans ouvrir aucune base. Les requêtes SERVICE et de modification sont refusées.</div>
+    <pre id="ld" class="mono" style="max-height:300px;overflow:auto;margin-top:10px;white-space:pre-wrap;color:var(--tx)"></pre>
+  </div>
+
 </div>
 </div>
 
@@ -253,6 +271,20 @@ $('bCurve').onclick=async()=>{
      borderColor:'#fbbf24',backgroundColor:'#fbbf24',tension:.3}]},
     options:{plugins:{legend:{labels:{color:'#8b96b8'}}},scales:axes}});
   $('mlMsg').textContent='Plus ε est grand, plus le modèle est précis et moins il protège. Simulation : aucun budget consommé.';
+};
+
+let sem=null;
+const esc=t=>String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;');
+async function charger(){if(!sem)sem=(await api('/api/semantic/catalogs')).j;return sem;}
+$('bLd').onclick=async()=>{const d=await charger();$('ld').textContent=JSON.stringify({A:d.A,B:d.B},null,2);$('sqMsg').textContent='Catalogues DCAT en JSON-LD, publiés par chaque organisation.';};
+$('bPol').onclick=async()=>{const d=await charger();$('ld').textContent=JSON.stringify(d.politique_A,null,2);$('sqMsg').textContent='Politique ODRL : le nœud A décide du contrat à partir de ce document.';};
+$('bSq').onclick=async()=>{
+  const q=$('sq').value;
+  const r=await api('/api/semantic/sparql?query='+encodeURIComponent(q));
+  if(r.s!==200){$('sqMsg').textContent='Refusée ('+r.s+') : '+(r.j.detail||'');return;}
+  if(r.j.type==='ASK'){$('ld').textContent='Réponse ASK : '+r.j.resultat;return;}
+  $('ld').innerHTML=esc(r.j.variables.join(' | '))+'\n'+r.j.lignes.map(l=>esc(r.j.variables.map(v=>l[v]).join(' | '))).join('\n');
+  $('sqMsg').textContent=r.j.lignes.length+' résultat(s).';
 };
 
 refresh();setInterval(refresh,8000);

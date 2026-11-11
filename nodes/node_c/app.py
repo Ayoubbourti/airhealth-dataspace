@@ -211,3 +211,21 @@ def ml_curve(reps: int = 300):
         erreurs.sort()
         sortie.append({"epsilon": eps, "erreur_mediane": round(erreurs[len(erreurs) // 2], 4)})
     return {"vrai_beta1": round(vrai, 4), "points": sortie}
+
+
+# ---------------------------------------------------------------------------
+# Interopérabilité sémantique : catalogues DCAT, politique ODRL, SPARQL.
+# ---------------------------------------------------------------------------
+@app.get("/api/semantic/catalogs")
+def catalogues_ld():
+    """Catalogues DCAT (JSON-LD) des nœuds A et B, et politique ODRL de A."""
+    return {
+        "A": appel("get", f"{URL_A}/catalog.jsonld").json(),
+        "B": appel("get", f"{URL_B}/catalog.jsonld").json(),
+        "politique_A": appel("get", f"{URL_A}/policy").json(),
+    }
+
+
+@app.get("/api/semantic/sparql")
+def sparql_proxy(query: str):
+    return rendre(appel("get", f"{URL_A}/sparql", params={"query": query}))

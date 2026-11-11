@@ -1,0 +1,44 @@
+{
+  "@context": {
+    "odrl": "http://www.w3.org/ns/odrl/2/",
+    "dct": "http://purl.org/dc/terms/",
+    "ah": "https://airhealth.example.org/ns#"
+  },
+  "@id": "https://airhealth.example.org/policy/air-research",
+  "@type": "odrl:Offer",
+  "dct:description": "Usage des classifications PM2.5 réservé à la recherche par le laboratoire IASD.",
+  "odrl:assigner": { "@id": "https://airhealth.example.org/org/environnement" },
+  "odrl:permission": [
+    {
+      "@type": "odrl:Permission",
+      "odrl:target": { "@id": "https://airhealth.example.org/dataset/air-tanger" },
+      "odrl:action": { "@id": "odrl:use" },
+      "odrl:constraint": [
+        {
+          "odrl:leftOperand": { "@id": "odrl:purpose" },
+          "odrl:operator": { "@id": "odrl:eq" },
+          "odrl:rightOperand": "research"
+        },
+        {
+          "odrl:leftOperand": { "@id": "odrl:recipient" },
+          "odrl:operator": { "@id": "odrl:isAnyOf" },
+          "odrl:rightOperand": ["laboratoire-iasd"]
+        }
+      ]
+    }
+  ],
+  "odrl:prohibition": [
+    {
+      "@type": "odrl:Prohibition",
+      "odrl:target": { "@id": "https://airhealth.example.org/dataset/air-tanger" },
+      "odrl:action": { "@id": "odrl:use" },
+      "odrl:constraint": [
+        {
+          "odrl:leftOperand": { "@id": "odrl:purpose" },
+          "odrl:operator": { "@id": "odrl:eq" },
+          "odrl:rightOperand": "commercial"
+        }
+      ]
+    }
+  ]
+}

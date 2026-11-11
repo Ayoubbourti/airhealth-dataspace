@@ -8,9 +8,11 @@ import math
 import os
 import random
 import sqlite3
+import sys
 import time
 
 from fastapi import FastAPI, Header, HTTPException
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
 app = FastAPI(title="Nœud B v2 - Hôpital")
@@ -18,6 +20,11 @@ app = FastAPI(title="Nœud B v2 - Hôpital")
 DOSSIER = Path(__file__).resolve().parent
 DB_HOPITAL = DOSSIER / "hopital.db"
 DB_GOUV = DOSSIER / "gouvernance_b.db"
+
+sys.path.insert(0, str(DOSSIER.parent.parent / "semantic"))
+import airhealth_semantic as sem  # noqa: E402
+
+CATALOGUE_LD = sem.charger("catalog_hopital.jsonld")
 
 # Valeurs de démonstration : à ne JAMAIS utiliser en production.
 CLE_API_B = os.getenv("CLE_HOPITAL", "secret-hospital-key-demo")
@@ -311,3 +318,8 @@ def entrainer(req: RequeteTrain, x_api_key: str | None = Header(default=None)):
         raise
     journaliser(req.consumer_id, req.contract_id, "TRAIN_OK", 200, EPSILON_PAR_REQUETE)
     return res
+
+@app.get("/catalog.jsonld")
+def catalogue_dcat():
+    """Catalogue DCAT en JSON-LD : CIM-10 J00-J99, unité UCUM, politique ODRL déclarée."""
+    return JSONResponse(CATALOGUE_LD, media_type="application/ld+json")

@@ -6,15 +6,25 @@ import hmac
 import json
 import os
 import sqlite3
+import sys
 import uuid
 
-from fastapi import FastAPI, Header, HTTPException
+from fastapi import FastAPI, Header, HTTPException, Query
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
 app = FastAPI(title="Nœud A - Environnement")
 
 DOSSIER = Path(__file__).resolve().parent
 DB_AIR = DOSSIER / "environnement.db"
+
+# Couche sémantique partagée (DCAT, ODRL, SPARQL) : dossier semantic/ à la racine du dépôt.
+sys.path.insert(0, str(DOSSIER.parent.parent / "semantic"))
+import airhealth_semantic as sem  # noqa: E402
+
+CATALOGUE_LD = sem.charger("catalog_air.jsonld")
+POLITIQUE = sem.charger("policy_air.jsonld")
+GRAPHE = sem.construire_graphe(CATALOGUE_LD, POLITIQUE)
 
 # Valeurs de démonstration : à ne JAMAIS utiliser en production.
 CLE_API_A = os.getenv("CLE_AIR", "secret-air-key-demo")
@@ -74,6 +84,27 @@ def lire_catalogue():
     return CATALOGUE
 
 
+@app.get("/catalog.jsonld")
+def catalogue_dcat():
+    """Catalogue DCAT en JSON-LD (standard W3C), avec référence à la politique ODRL."""
+    return JSONResponse(CATALOGUE_LD, media_type="application/ld+json")
+
+
+@app.get("/policy")
+def politique_odrl():
+    """Politique d'usage ODRL en JSON-LD."""
+    return JSONResponse(POLITIQUE, media_type="application/ld+json")
+
+
+@app.get("/sparql")
+def sparql(query: str = Query(..., max_length=2000)):
+    """Requêtes SPARQL en lecture seule sur le catalogue et la politique."""
+    try:
+        return sem.sparql_lecture_seule(GRAPHE, query)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
 @app.post("/contracts/negotiate")
 def negocier_contrat(
     demande: DemandeContrat,
@@ -82,10 +113,12 @@ def negocier_contrat(
     verifier_cle(x_api_key)
     if demande.dataset_id != DATASET_ID:
         raise HTTPException(status_code=404, detail="Jeu de données inexistant")
-    if demande.purpose != FINALITE_AUTORISEE:
-        raise HTTPException(status_code=403, detail="Finalité non autorisée")
-    if demande.consumer_id not in CONSOMMATEURS_AUTORISES:
-        raise HTTPException(status_code=403, detail="Consommateur non autorisé")
+    # La décision vient de la politique ODRL (semantic/policy_air.jsonld), pas d'un test codé en dur.
+    autorise, raison = sem.evaluer(
+        POLITIQUE, action="use", purpose=demande.purpose, recipient=demande.consumer_id
+    )
+    if not autorise:
+        raise HTTPException(status_code=403, detail=raison)
 
     contract_id = f"contract-air-{uuid.uuid4().hex[:8]}"
     contrats[contract_id] = {
