@@ -1,6 +1,8 @@
 """Nœud C - Laboratoire : orchestrateur + dashboard. Les clés restent côté serveur."""
 from contextlib import closing
 from pathlib import Path
+import math
+import random
 import sqlite3
 
 import requests
@@ -125,3 +127,87 @@ def attaque(epuiser: bool = False):
         p2, _ = nouveau_paquet()
         test("Nouveau contrat pour réinitialiser ε", 429, appel("post", f"{URL_B}/compute", headers=HB, json=p2))
     return log
+
+# ---------------------------------------------------------------------------
+# ML fédéré : l'hôpital publie des taux bruités par tranche de PM2.5 (veille),
+# le laboratoire ajuste log(taux) = b0 + b1 * tranche.
+# ---------------------------------------------------------------------------
+BORNES = (15.0, 25.0, 35.0)
+LABELS = ["< 15", "15 à 25", "25 à 35", "≥ 35"]
+
+
+def ajuster(points):
+    """Régression log(taux) = b0 + b1*tranche, pondérée par n*taux (approx. Poisson)."""
+    pts = [(k, math.log(t), n * t) for k, n, t in points if t is not None]
+    if len(pts) < 2:
+        return None
+    sw = sum(w for _, _, w in pts)
+    mx = sum(w * x for x, _, w in pts) / sw
+    my = sum(w * y for _, y, w in pts) / sw
+    sxx = sum(w * (x - mx) ** 2 for x, _, w in pts)
+    b1 = sum(w * (x - mx) * (y - my) for x, y, w in pts) / sxx
+    return my - b1 * mx, b1
+
+
+def tranches_verite():
+    """DÉMO UNIQUEMENT : lit les deux bases pour comparer au résultat bruité."""
+    with closing(sqlite3.connect(NODES / "node_a" / "environnement.db")) as a, \
+         closing(sqlite3.connect(NODES / "node_b" / "hopital.db")) as b:
+        pm = a.execute("SELECT date, pm25 FROM qualite_air ORDER BY date").fetchall()
+        adm = dict(b.execute("SELECT date, nombre FROM admissions").fetchall())
+    g = {k: [] for k in range(4)}
+    for i in range(1, len(pm)):
+        g[sum(1 for x in BORNES if pm[i - 1][1] >= x)].append(adm[pm[i][0]])
+    return [(k, len(v), sum(v) / len(v)) for k, v in g.items() if len(v) >= 3]
+
+
+@app.post("/api/ml/train")
+def ml_train():
+    r = appel("post", f"{URL_A}/contracts/negotiate", headers=HA,
+              json={"dataset_id": DATASET, "consumer_id": CONSUMER, "purpose": "research"})
+    if r.status_code != 200:
+        return rendre(r)
+    cid = r.json()["contract_id"]
+    r = appel("get", f"{URL_A}/features", headers=HA,
+              params={"contract_id": cid, "consumer_id": CONSUMER})
+    if r.status_code != 200:
+        return rendre(r)
+    r = appel("post", f"{URL_B}/train", headers=HB, json=r.json())
+    if r.status_code != 200:
+        return rendre(r)
+    res = r.json()
+    fit = ajuster([(t["tranche"], t["n"], t["taux"]) for t in res["tranches"]])
+    if fit is None:
+        raise HTTPException(400, "Pas assez de tranches publiées")
+    verite = tranches_verite()
+    fit_v = ajuster(verite)
+    return {
+        "labels": LABELS,
+        "tranches": res["tranches"],
+        "beta1": round(fit[1], 4),
+        "effet_pct": round((math.exp(fit[1]) - 1) * 100, 1),
+        "vrai_beta1": round(fit_v[1], 4),
+        "vrais_taux": [round(t, 3) for _, _, t in verite],
+        "epsilon_restant": res["epsilon_restant"],
+    }
+
+
+@app.get("/api/ml/curve")
+def ml_curve(reps: int = 300):
+    """DÉMO : simule le mécanisme pour plusieurs ε (aucun budget consommé)."""
+    verite = tranches_verite()
+    vrai = ajuster(verite)[1]
+    rng = random.Random(7)
+    sortie = []
+    for eps in (0.1, 0.25, 0.5, 1, 2, 5):
+        erreurs = []
+        for _ in range(reps):
+            pts = []
+            for k, n, t in verite:
+                echelle = (30.0 / n) / eps
+                bruit = rng.expovariate(1 / echelle) - rng.expovariate(1 / echelle)
+                pts.append((k, n, min(max(t + bruit, 0.1), 30.0)))
+            erreurs.append(abs(ajuster(pts)[1] - vrai))
+        erreurs.sort()
+        sortie.append({"epsilon": eps, "erreur_mediane": round(erreurs[len(erreurs) // 2], 4)})
+    return {"vrai_beta1": round(vrai, 4), "points": sortie}

@@ -4,3 +4,4 @@ __pycache__/
 .env
 .pytest_cache/
 /*.db
+nodes/node_b/gouvernance_b.db
