@@ -92,6 +92,14 @@ python -m uvicorn app:app --port 8000
 
 Ouvrez **http://127.0.0.1:8000**. N'utilisez pas `--reload` : il efface la mémoire des contrats à chaque modification.
 
+## Tests
+
+```bat
+python -m pytest -v
+```
+
+Les tests utilisent des bases temporaires : pas besoin de lancer les serveurs, et les vraies bases ne sont pas modifiées.
+
 ## Scénario de démo
 
 1. **Lire le catalogue**, **négocier un contrat**, **lancer l'analyse** : deux moyennes bruitées proches de la vérité terrain.
@@ -132,10 +140,11 @@ Rejeu de l'attaque contre la version corrigée : `tp/TP4_attaques/attaque_budget
 - [x] TP1 à TP4 et réponses aux questions
 - [x] Attaque sur le budget ε et correction (nœud B v2)
 - [x] Données synthétiques, dashboard, ML fédéré
-- [ ] Tests automatiques `pytest` (une preuve par correction)
+- [x] Tests automatiques `pytest` (28 tests, une preuve par correction)
 - [ ] Signatures Ed25519, contrats avec expiration, révocation et nonce
 - [ ] Catalogue DCAT en JSON-LD, politique ODRL, ontologie (UCUM, CIM-10)
-- [ ] Docker Compose et CI GitHub Actions
+- [x] CI GitHub Actions (`.github/workflows/tests.yml`)
+- [ ] Docker Compose
 - [ ] Comparaison avec IDSA, Eclipse EDC, Gaia-X, Catena-X
 
 ## Notions clés

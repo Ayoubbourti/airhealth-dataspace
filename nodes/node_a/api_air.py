@@ -32,7 +32,7 @@ CATALOGUE = [
         "title": "Qualité de l'air - PM2.5 à Tanger",
         "description": "Concentrations journalières de PM2.5 (données fictives).",
         "publisher": "Organisation Environnement",
-        "temporal_coverage": "2026-10-01/2026-10-10",
+        "temporal_coverage": "2026-01-01/2026-12-31",
         "unit": "µg/m³",
         "access_endpoint": "/contracts/negotiate",
         "allowed_purpose": FINALITE_AUTORISEE,  # règle inspirée d'ODRL

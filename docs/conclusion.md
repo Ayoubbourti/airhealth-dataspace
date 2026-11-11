@@ -13,5 +13,11 @@
 ## Ce que l'extension apporte (nœud B v2)
 Le TP 4 de base a lui-même des failles : bruit choisi par le client, budget remis à zéro par un nouveau contrat, budget perdu au redémarrage, aucune trace des accès. Le nœud B v2 les corrige (bruit imposé, budget persistant par consommateur et jeu de données, journal d'audit chaîné). Voir `docs/attaque_budget.md` et `tp/TP4_attaques/`.
 
+## Ce que l'upgrade ajoute
+- **Données synthétiques** (365 jours, effet retardé d'un jour, température confondante) : avec plus de données, le bruit de Laplace (échelle 30/n/ε) coûte beaucoup moins en précision.
+- **Dashboard web (nœud C)** : parcours fédéré, budget ε, journal d'audit chaîné, simulation d'attaques. Les clés API restent côté serveur.
+- **ML fédéré** : l'hôpital publie des taux d'admissions bruités par tranche de PM2.5 de la veille ; le laboratoire ajuste la régression. La courbe précision vs ε illustre le compromis.
+- **Tests automatiques** (pytest, 28 tests) et intégration continue : chaque correction de sécurité a une preuve exécutable.
+
 ## Limites restantes
 Les classifications et les agrégats circulent toujours. Le bruit n'est pas une garantie formelle de confidentialité différentielle. La signature HMAC est symétrique. Les clés et secrets sont des valeurs de démonstration. Il n'y a ni HTTPS, ni identités organisationnelles. Le prototype ne doit pas être exposé sur Internet ni utilisé avec des données réelles.
