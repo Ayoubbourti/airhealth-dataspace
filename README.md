@@ -49,7 +49,7 @@ airhealth-dataspace/
 │   ├── node_b/                  # API Hôpital v2 (bruit imposé, budget persistant, audit, /train)
 │   └── node_c/                  # Laboratoire : orchestration + dashboard (static/index.html)
 ├── data/generate.py             # générateur de données synthétiques (365 jours)
-├── docs/                        # réponses aux questions, captures, notes
+├── docs/                        # réponses aux questions, captures, notes, comparaison avec les écosystèmes existants
 └── requirements.txt
 ```
 
@@ -163,7 +163,7 @@ Rejeu de l'attaque contre la version corrigée : `tp/TP4_attaques/attaque_budget
 - [x] Catalogue DCAT en JSON-LD, politique ODRL appliquée, SPARQL en lecture seule, UCUM et CIM-10 (`semantic/`)
 - [x] CI GitHub Actions (`.github/workflows/tests.yml`)
 - [ ] Docker Compose
-- [ ] Comparaison avec IDSA, Eclipse EDC, Gaia-X, Catena-X
+- [x] Comparaison avec IDSA, Eclipse EDC, Gaia-X, Catena-X (`docs/comparaison_espaces_de_donnees.md`)
 
 ## Notions clés
 
