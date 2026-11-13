@@ -6,6 +6,8 @@ Le catalogue du nœud A (`GET /catalog`) : identifiant (`dataset-air-tanger`), t
 ## 2. Qu'est-ce que DCAT et pourquoi le catalogue est-il une simplification inspirée de DCAT ?
 DCAT (Data Catalog Vocabulary) est un vocabulaire du W3C, exprimé en RDF, pour décrire des catalogues, des jeux de données et leurs distributions de façon interopérable. Notre catalogue est un simple JSON dont quelques champs s'inspirent de DCAT : il n'y a ni RDF, ni URI de vocabulaires, ni distributions, ni licence. Il n'est donc pas conforme au standard.
 
+> **Note :** cette réponse décrit le `GET /catalog` du TP d'origine. L'extension du projet ajoute un vrai catalogue DCAT en JSON-LD (`GET /catalog.jsonld`, fichiers `semantic/catalog_*.jsonld`), lisible comme du RDF et interrogeable en SPARQL. L'ancien `/catalog` JSON simple est conservé pour compatibilité.
+
 ## 3. Pourquoi contrôler la finalité avant d'autoriser l'accès ? Différence entre catalogue, politique d'usage et contrôle d'accès
 Une même donnée peut être légitime pour la recherche et inacceptable pour un usage commercial : l'accès doit dépendre de l'usage prévu.
 - **Catalogue** : décrit ce qui existe (découverte).
